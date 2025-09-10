@@ -138,7 +138,7 @@ players |>
   filter(Team == "Maryland Terrapins Men's")
 ```
 
-**ANSWER** Who do you get as the first result, and what was his trueshooting percentage?
+**Julian Reese was the first player there with a true shooting percentage of 59.9%. It makes sense since he only attempted one three pointer the entire year and took most of his shot attempts around the basket --- very efficient attempts. ** Who do you get as the first result, and what was his trueshooting percentage?
 
 
 So is 100 minutes our level? Here's the truth -- there's not really an answer here. We're picking a cutoff. If you can cite a reason for it and defend it, then it probably works.
@@ -178,7 +178,18 @@ matches_2025 |>
 Now it's your turn: do the same for the 2024 data. Load it from GitHub, then adapt the above code but add an additional filter to restrict the results to Maryland's first six games (the 6th game was on Sept. 1, 2024). You need to put the date value in quotes in this format: 'yyyy-mm-dd'
 
 ```{r}
-
+matches_2024 <- read_csv("https://raw.githubusercontent.com/dwillis/NCAAWomensSoccerData/main/data/ncaa_womens_soccer_matchstats_2024.csv")
+```
+```{r}
+matches_2024 |>
+  filter(team == 'Maryland Terrapins, Terps', date <= '2024-09-01') |>
+  group_by(team) |>
+  summarise(
+    total_attempts = sum(sh_att),
+    total_on_goal = sum(so_g),
+    percent = (total_on_goal / total_attempts) * 100
+  )
 ```
 
-**ANSWER** How do the two years compare?
+
+**Not a shocker, but the Terps have been more efficient this year, connecting on roughly five percent more of their shots being on goal. They've also had both more total attempts and total shots on goal. ** 
