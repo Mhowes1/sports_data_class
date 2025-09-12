@@ -1,0 +1,41 @@
+```{r}
+library(tidyverse)
+```
+
+```{r}
+soccer <- read_csv("https://dwillis.github.io/sports-data-files/ncaa_womens_soccer_totals_2024.csv")
+```
+
+```{r}
+soccer |>
+  mutate(SoGPct = (SoG/ShAtt)*100
+) |>
+  arrange(desc(SoGPct))
+```
+
+```{r}
+soccer |>
+  mutate(
+    SoGPct = (SoG/ShAtt) * 100,
+    GoalsPerGame = goals / games_played
+  ) |>
+  arrange(desc(GoalsPerGame)) |>
+  select(school_name, conference_name, GoalsPerGame)
+```
+
+```{r}
+soccer |>
+  mutate(
+    GoalsPerGame = goals / games_played
+  ) |>
+  arrange(desc(goalie_sv_pct)) |>
+  select(school_name, conference_name, GoalsPerGame, goalie_sv_pct)
+```
+
+
+Four of the top 10 teams in the country in shot-on-goal percentage come from the Southwestern Athletic Conference. For a league not exactly known for its soccer pedigree, that’s a surprising sight at the top of the leaderboard.
+
+But the numbers don’t tell a simple story. None of those teams crack the top 25 nationally in goals per game, which hints at a different dynamic: maybe defenses in the SWAC aren’t closing down shooters as tightly, giving attackers cleaner looks, while goalkeepers are doing just enough to keep scores down. It paints a picture of bad defending paired with solid keeping — an unusual balance that helps explain the efficiency gap.
+
+The next step is figuring out how far this trend extends. Are defenses across the SWAC weaker than other mid-major leagues? And what happens when players transfer out — do they keep producing quality shots at the same rate in tougher conferences, or does the efficiency fade once the defensive level rises? Those are the questions that could turn a quirky stat into a deeper story about how talent in the SWAC translates beyond. 
+
