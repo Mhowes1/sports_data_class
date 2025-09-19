@@ -135,4 +135,4 @@ It suggests something real changed across the board. Maybe early-season mismatch
 
 For Maryland, the picture is quieter. Maryland games ticked up from 2.68 to 2.88 total goals on average, but the test isn’t significant (p = 0.766). 
 
-That seems like small-sample noise and a stable team profile — slight movement year to year that doesn’t clear the bar. Roster continuity, opponent mix and a few close, low-event games can flatten the signal.***
+That seems like small-sample noise and a stable team profile — slight movement year to year that doesn’t clear the bar. Roster continuity, opponent mix and a few close, low-event games can make it harder to see a real change.***
