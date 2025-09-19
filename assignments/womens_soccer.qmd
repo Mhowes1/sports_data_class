@@ -12,7 +12,9 @@ We'll want to start with 2025 match data, which is located in [this GitHub repos
 
 
 ```{r}
-matches_2025 <- read_csv("https://raw.githubusercontent.com/dwillis/NCAAWomensSoccerData/main/data/ncaa_womens_soccer_matchstats_2025.csv")
+matches_2025 <- read_csv("https://raw.githubusercontent.com/dwillis/NCAAWomensSoccerData/main/data/ncaa_womens_soccer_matchstats_2025.csv") |> mutate(diff=team_score-opponent_score, total_goals = goals +defensive_goals)
+
+matches_2024 <- read_csv("https://raw.githubusercontent.com/dwillis/NCAAWomensSoccerData/main/data/ncaa_womens_soccer_matchstats_2024.csv") |> mutate(diff=team_score-opponent_score, total_goals = goals +defensive_goals)
 ```
 
 Let's take a look at this data to see what it contains, using `head` and `glimpse`:
@@ -105,3 +107,32 @@ Maryland had 28 corners, while its opponents had 22, with a positive difference 
 
 
 I found the four-draws answer the most interesting. It’s unusual for a team to start a season with four straight ties, since that requires a mix of resilience and missed opportunities to both win and lose. In Maryland’s case, it stood out because the team wasn’t particularly strong that year, yet they still managed to grind out results and keep each game close enough to avoid defeat. It shows how results can sometimes mask underlying struggles—on paper they were unbeaten, but the string of draws also hinted at their limitations.
+
+
+
+
+TEST
+
+```{r}
+matches_2025 <- read_csv("https://raw.githubusercontent.com/dwillis/NCAAWomensSoccerData/main/data/ncaa_womens_soccer_matchstats_2025.csv") |> mutate(diff=team_score-opponent_score, total_goals = goals +defensive_goals)
+
+matches_2024 <- read_csv("https://raw.githubusercontent.com/dwillis/NCAAWomensSoccerData/main/data/ncaa_womens_soccer_matchstats_2024.csv") |> mutate(diff=team_score-opponent_score, total_goals = goals +defensive_goals)
+```
+
+```{r}
+t.test(matches_2024$total_goals, matches_2025$total_goals)
+```
+
+```{r}
+t.test(
+  matches_2024$total_goals[matches_2024$team == "Maryland Terrapins, Terps"],
+  matches_2025$total_goals[matches_2025$team == "Maryland Terrapins, Terps"]
+)
+```
+*** Nationwide scoring is up. The NCAA average rose from 2.75 total goals per match in 2024 to 2.90 in 2025, and the difference is statistically significant (Welch t-test p = 0.00047). 
+
+It suggests something real changed across the board. Maybe early-season mismatches inflated scores, or turnover on the back line outpaced improvements in goalkeeping. It could also be tactical with more teams pressing higher and trading chances --- but whatever the cause, the national data says the ball is going in more often.
+
+For Maryland, the picture is quieter. Maryland games ticked up from 2.68 to 2.88 total goals on average, but the test isn’t significant (p = 0.766). 
+
+That seems like small-sample noise and a stable team profile — slight movement year to year that doesn’t clear the bar. Roster continuity, opponent mix and a few close, low-event games can flatten the signal.***
