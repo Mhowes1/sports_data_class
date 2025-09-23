@@ -136,3 +136,80 @@ It suggests something real changed across the board. Maybe early-season mismatch
 For Maryland, the picture is quieter. Maryland games ticked up from 2.68 to 2.88 total goals on average, but the test isn’t significant (p = 0.766). 
 
 That seems like small-sample noise and a stable team profile — slight movement year to year that doesn’t clear the bar. Roster continuity, opponent mix and a few close, low-event games can make it harder to see a real change.***
+
+
+
+
+
+
+***
+
+```{r}
+correlations <- read_csv("https://raw.githubusercontent.com/dwillis/NCAAWomensSoccerData/main/data/ncaa_womens_soccer_matchstats_2024.csv")
+```
+
+```{r}
+newcorrelations <- correlations |>
+  mutate(
+    differential = goals - defensive_goals
+  )
+```
+
+```{r}
+newcorrelations |> summarise(correlation = cor(differential, fouls, method="pearson"))
+```
+
+```{r}
+newcorrelations |> summarise(correlation = cor(differential, yellow_cards, method="pearson"))
+```
+
+
+```{r}
+newcorrelations |>
+  summarise(correlation = cor(differential,so_g, method="pearson"))
+```
+
+### 2025 version
+
+
+```{r}
+correlations25 <- read_csv("https://raw.githubusercontent.com/dwillis/NCAAWomensSoccerData/main/data/ncaa_womens_soccer_matchstats_2025.csv")
+```
+
+
+```{r}
+newcorrelations <- correlations|>
+  mutate(
+    differential = goals - defensive_goals
+  )
+terps25 <-newcorrelations |>
+  filter(team == "Maryland Terrapins, Terps")
+
+newcorrelations <- correlations |>
+  mutate(
+    differential = goals - defensive_goals,
+    homeaway = case_when(
+      home_away == "Away" ~ 0,
+      home_away == "Home" ~ 1
+    )
+  )
+
+terps25 <- newcorrelations |>
+  filter(team == "Maryland Terrapins, Terps")
+```
+
+```{r}
+terps25 |> 
+  summarise(correlation = cor(differential, homeaway, method = "pearson"))
+```
+
+```{r}
+net <- lm(differential ~ homeaway, data = terps25)
+summary(net)
+```
+ANSWER*****
+
+Maryland men’s soccer has been a different team depending on where they’ve played. On the road, the Terps have struggled, often leaving empty-handed after one- or two-goal losses. But when they’ve stepped onto Ludwig Field, the results have flipped — comfortable wins and more consistent attacking play. A story could dig into how home crowds, travel demands, and player confidence have shaped the Terps’ season, illustrated through key examples like their narrow defeats away from College Park versus the sharper finishing and defensive stability they’ve shown at home.
+
+
+
