@@ -1,0 +1,54 @@
+```{r}
+library(tidyverse)
+```
+
+
+```{r}
+logs <- read_csv("https://dwillis.github.io/sports-data-files/footballlogs1124.csv") |>
+   mutate(PointDifferential = TeamScore - OpponentScore)
+
+logs |> select(Team, Opponent, TeamScore, OpponentScore, PointDifferential) |>
+  head()
+```
+
+```{r}
+model <- lm(PointDifferential ~ PenaltyYds, data = logs)
+
+summary(model)
+
+```
+
+***
+
+The regression shows a coefficient of 0.015 for penalty yards, with a p-value of 0.0067. Since this is below 0.05, the relationship is statistically significant, meaning it is unlikely to be the result of random chance. The R-squared value is only 0.0003, meaning penalty yards explain less than 1% of the variation in score differential. While the model detects a statistically real relationship, it has no predictive power—penalty yards alone are not a useful way to explain or predict game outcomes.
+
+***
+
+```{r}
+multiple_regression_model <- lm(PointDifferential ~ Penalties + PenaltyYds + Fumbles + Interceptions + TotalTurnovers, data = logs)
+
+summary(multiple_regression_model)
+```
+***
+The multiple regression is significant, with penalties, fumbles and interceptions explaining about 14% of score differential. TotalTurnovers dropped due to multicollinearity, showing overlap among predictors. Mistakes matter but most variance remains unexplained.
+***
+
+```{r}
+close_games <- logs |>
+  filter(PointDifferential <= 7 & PointDifferential >= -7)
+```
+
+```{r}
+multiple_regression_close_games_model <- lm(PointDifferential ~ Penalties + PenaltyYds + Fumbles + Interceptions, data = close_games)
+
+summary(multiple_regression_close_games_model)
+```
+
+***
+In close games, the multiple regression is stronger than the simple model, but still only explains about 5% of score differential. Mistakes matter, yet not enough for prediction. It is better used as context showing penalties and turnovers can tilt tight games.
+***
+
+***
+Penalties and turnovers correlate with point differential but explain little on their own, making them weak predictors. Still, they’re useful context. It is a stat to support the idea that mistakes swing games, but would be best used as a sidebar or nugget within a larger story.
+***
+
