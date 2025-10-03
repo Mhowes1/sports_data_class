@@ -213,3 +213,110 @@ Maryland men’s soccer has been a different team depending on where they’ve p
 
 
 
+```{r}
+teamquality <- matches_2025 |> 
+  mutate(sog_pct = so_g/sh_att, def_sog_pct = defensive_so_g/defensive_sh_att) |> 
+  filter(!is.na(sog_pct), !is.na(def_sog_pct)) |> 
+  group_by(team) |> 
+  summarise(
+    avg_goals = mean(goals),
+    avg_def_goals = mean(defensive_goals),
+    avg_sog_pct = mean(sog_pct),
+    avg_def_sog_pct = mean(def_sog_pct),
+    avg_assists = mean(assists),
+    avg_def_assists = mean(defensive_assists)
+  )
+```
+
+```{r}
+teamzscore <- teamquality |> 
+  mutate(
+    goalsZscore = as.numeric(scale(avg_goals, center = TRUE, scale = TRUE)),
+    defgoalsZscore = as.numeric(scale(avg_def_goals, center = TRUE, scale = TRUE)) * -1,
+    sogpctZscore = as.numeric(scale(avg_sog_pct, center = TRUE, scale = TRUE)),
+    defsogpctZscore = as.numeric(scale(avg_def_sog_pct, center = TRUE, scale = TRUE)) * -1,
+    assistsZscore = as.numeric(scale(avg_assists, center = TRUE, scale = TRUE)),
+    defassistsZscore = as.numeric(scale(avg_def_assists, center = TRUE, scale = TRUE)) * -1,
+    TotalZscore = goalsZscore + defgoalsZscore + sogpctZscore + defsogpctZscore + assistsZscore + defassistsZscore
+  ) 
+
+team
+```
+
+```{r}
+matches_2025 <- read_csv("https://raw.githubusercontent.com/dwillis/NCAAWomensSoccerData/main/data/ncaa_womens_soccer_matchstats_2025.csv")
+```
+
+```{r}
+
+matches_2025 <- matches_2025 |>
+  mutate(differential = team_score - opponent_score)
+```
+
+```{r}
+colnames(matches_2025)
+```
+
+```{r}
+model <- lm(differential ~ sh_att + so_g + corners + defensive_so_g + defensive_fouls, data = matches_2025)
+
+summary(model)
+```
+
+***
+I chose variables that directly measure offensive and defensive performance — shots on goal, shots on goal allowed, fouls, shot attempts, and corners — because they best capture a team’s ability to create and prevent quality scoring chances. The model showed that shots on goal and shots on goal allowed were by far the strongest predictors of goal differential (Adjusted R² = 0.574), with residuals centered near zero and ranging roughly from -7 to +7, indicating the model is both unbiased and reasonably accurate given the variability of soccer matches. *** 
+
+```{r}
+matches_2025_clean <- matches_2025 |>
+  filter(!is.na(sh_att), 
+         !is.na(so_g), 
+         !is.na(corners), 
+         !is.na(defensive_so_g), 
+         !is.na(defensive_fouls))
+```
+
+```{r}
+matches_2025_clean <- matches_2025_clean |>
+  mutate(predicted = predict(model),
+         residuals = residuals(model))
+```
+
+```{r}
+matches_2025_clean |>
+  arrange(desc(residuals)) |>
+  select(date, team, opponent, differential, predicted, residuals) |>
+  head()
+```
+
+```{r}
+matches_2025_clean |>
+  arrange(residuals) |>
+  select(date, team, opponent, differential, predicted, residuals) |>
+  head()
+```
+
+*** The outlier games show that some teams either lost by much more than the model predicted, like Vermont drawing instead of winning, Iona losing when favored, or won by far larger margins than expected, like Alcorn and Xavier blowouts. These results highlight matches where finishing, goalkeeping, or other unmeasured factors swung outcomes beyond what offensive and defensive shot-based stats could explain. ***
+
+```{r}
+maryland_residuals <- matches_2025_clean |>
+  filter(team == "Maryland Terrapins, Terps") |>
+  arrange(residuals) |>
+  select(date, team, opponent, differential, predicted, residuals)
+```
+
+```{r}
+maryland_residuals |>
+  arrange(desc(residuals)) |>
+  head(4)
+```
+
+```{r}
+maryland_residuals |>
+  arrange(residuals) |>
+  head(4)
+```
+
+***Maryland’s biggest over-performance came in a 1–0 win against Purdue, where the model predicted a loss, while its worst under-performances were lopsided defeats to Penn State and USC that were more severe than expected. This suggests the Terps can exceed expectations in tight Big Ten games but still struggle to keep pace with nationally powerhouse opponents.***
+
+
+***What surprised me most was how strongly shots on goal for and against predicted outcomes. If I were writing a article, I’d want to explore why Maryland tends to over-perform in close conference games but falters against top national programs, and whether that reflects talent gaps, depth, or game management.***

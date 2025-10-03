@@ -142,3 +142,77 @@ logs |>
 ```
 
 *** I built a defense-based model using blocks, steals, and opponent field goal percentage to estimate point differential for Big Ten champions. The model predicted just a 5.6-point margin per game, lower than what I found with rebounds earlier. This suggests that while defense matters, those champions likely paired it with efficient shooting and rebounding to achieve their true winning margins. ***
+
+```{r}
+logs <- read_csv("https://dwillis.github.io/sports-data-files/cbblogs1525.csv")
+```
+
+```{r}
+residualmodel <- logs |> mutate(differential = TeamScore - OpponentScore, FGPctMargin = TeamFGPCT - OpponentFGPCT)
+```
+
+```{r}
+fit <- lm(differential ~ FGPctMargin, data = residualmodel)
+summary(fit)
+```
+
+
+
+```{r}
+gamelogs <- read_csv("/Users/michaelhowes/Documents/sports_data_class/assignments/logs25.csv")
+```
+
+
+```{r}
+teamquality <- gamelogs |> 
+  select(Conference, Team, TeamFGPCT, TeamTotalRebounds, OpponentFGPCT, OpponentTotalRebounds)
+```
+
+```{r}
+teamtotals <- teamquality |> 
+  group_by(Conference, Team) |> 
+  summarise(
+    FGAvg = mean(TeamFGPCT), 
+    ReboundAvg = mean(TeamTotalRebounds), 
+    OppFGAvg = mean(OpponentFGPCT),
+    OffRebAvg = mean(OpponentTotalRebounds)
+    ) 
+```
+
+```{r}
+teamzscore <- teamtotals |> 
+  mutate(
+    FGzscore = as.numeric(scale(FGAvg, center = TRUE, scale = TRUE)),
+    RebZscore = as.numeric(scale(ReboundAvg, center = TRUE, scale = TRUE)),
+    OppZscore = as.numeric(scale(OppFGAvg, center = TRUE, scale = TRUE)) * -1,
+    OppRebZScore = as.numeric(scale(OffRebAvg, center = TRUE, scale = TRUE)) * -1,
+    TotalZscore = FGzscore + RebZscore + OppZscore + OppRebZScore
+  )  
+```
+
+
+```{r}
+head(teamzscore)
+```
+
+```{r}
+teamzscore |> arrange(desc(TotalZscore))
+```
+
+```{r}
+teamzscore |> 
+  filter(Conference == "Big Ten MBB") |> 
+  arrange(desc(TotalZscore)) |>
+  select(Team, TotalZscore)
+```
+
+```{r}
+powerfive_plus_one <- c("SEC MBB", "Big Ten MBB", "Pac-12 MBB", "Big 12 MBB", "ACC MBB", "Big East MBB")
+teamzscore |> 
+  filter(Conference %in% powerfive_plus_one) |> 
+  arrange(desc(TotalZscore)) |>
+  select(Team, TotalZscore)
+```
+
+
+
