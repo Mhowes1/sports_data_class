@@ -1,0 +1,68 @@
+---
+title: "wbb.rmd"
+output: html_document
+date: "2025-10-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+wbb <- read_csv("https://dwillis.github.io/sports-data-files/wbbstats1525.csv")
+```
+
+```{r}
+colnames(wbb)
+```
+
+```{r}
+teamtotals <- wbb |> 
+  filter(Season >= 2015, Season <= 2025, Games > 0) |> 
+  mutate(
+    PointsAvg = ForPoints / Games,
+    OppPointsAvg = OppPoints / Games,
+    ReboundAvg = TotalRebounds / Games,
+    TurnoverAvg = Turnovers / Games
+  ) |> 
+  group_by(Season, School) |> 
+  summarise(
+    PointsAvg = mean(PointsAvg),
+    OppPointsAvg = mean(OppPointsAvg),
+    ReboundAvg = mean(ReboundAvg),
+    TurnoverAvg = mean(TurnoverAvg)
+  )
+```
+
+```{r}
+teamzscore <- teamtotals |> 
+  mutate(
+    PTSz = as.numeric(scale(PointsAvg, center = TRUE, scale = TRUE)),
+    OppPTSz = as.numeric(scale(OppPointsAvg, center = TRUE, scale = TRUE)) * -1,
+    REBz = as.numeric(scale(ReboundAvg, center = TRUE, scale = TRUE)),
+    TOVz = as.numeric(scale(TurnoverAvg, center = TRUE, scale = TRUE)) * -1,
+    TotalZscore = PTSz + OppPTSz + REBz + TOVz
+  )
+```
+
+```{r}
+teamzscore |> arrange(desc(TotalZscore))
+```
+
+***The first Maryland team to appear is the 2017 squad, which ranks 37th over the stretch with a 32-3 record. No surprise at the top: Kim Mulkey’s Baylor teams, South Carolina, and Connecticut dominate the list. In fact, South Carolina, Connecticut, and Mulkey's (also 2023 LSU) teams account for the entire top 10. ***
+
+
+```{r}
+teamzscore |> 
+  filter(School == "Maryland") |> 
+  arrange(desc(TotalZscore)) |> 
+  select(Season, School, TotalZscore)
+```
+
+***Frese’s teams have often excelled in two-year bursts. Her best stretch came in 2016 and 2017, followed by another strong run in 2020 and 2021. Interestingly, even in seasons with single-digit losses and high z-scores, Maryland still fell short of the dominance shown by the very top programs.***
+
+***Top story: Maryland has been one of the nation’s most consistent winners, but the data shows a ceiling compared to the game’s giants. Their top years place them well above average, yet never in the rarefied air occupied by UConn, South Carolina, Baylor, and LSU. The story here is less about underachievement and more about how hard it is to crack into that small circle of true dynasties.***
