@@ -1,0 +1,67 @@
+---
+title: "Background Research"
+author: "Michael Howes"
+format: html
+---
+
+***This is the question I chose: Does higher-than-average home attendance improve the home team’s performance in college football games, such as Ohio State/Michigan coming to play at SECU Stadium compared to a Towson. Does that help, or actually hurt the Terps' performance.  ****
+
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+data <- read_csv("../data/attendance spreadsheet.csv")
+```
+```{r}
+head(data)
+```
+
+
+```{r}
+summary(data)
+```
+
+```{r}
+data |>
+  group_by(Result) |>
+  summarise(avg_md_turnovers = mean(MdTurnovers),
+            avg_opp_turnovers = mean(OppTurnovers),
+            games = n())
+```
+
+```{r}
+data <- data |>
+  rename(Attendance = Attendence)
+```
+
+
+```{r}
+data |>
+  group_by(Result) |>
+  summarise(avg_attendance = mean(Attendance))
+```
+
+```{r}
+data |> 
+  filter(Attendance > 38000) |> 
+  summarise(avg_md_points = mean(MdPoints),
+            avg_opp_points = mean(OppPoints),
+            wins = sum(Result == "W"),
+            losses = sum(Result == "L"),
+            games = n())
+```
+
+```{r}
+data |> 
+  filter(Attendance <= 38000) |> 
+  summarise(avg_md_points = mean(MdPoints),
+            avg_opp_points = mean(OppPoints),
+            wins = sum(Result == "W"),
+            losses = sum(Result == "L"),
+            games = n())
+```
+
+
+***I found that Maryland averaged about 35 points and went 11–3 in games with below-average attendance, compared to just 24 points and a 2–5 record in high-attendance games. The results suggest that larger crowds at SECU Stadium don’t translate into better performance for Maryland — instead, those games typically feature ranked Big Ten opponents who draw more fans but also hand Maryland losses.***
