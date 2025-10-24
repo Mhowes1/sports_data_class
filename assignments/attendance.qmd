@@ -3,6 +3,11 @@
 Let's load the tidyverse.
 
 ```{r}
+install.packages("tidyverse")
+```
+
+
+```{r}
 library(tidyverse)
 ```
 

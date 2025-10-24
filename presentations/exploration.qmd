@@ -1,72 +1,3 @@
----
-title: "Background Research"
-author: "Michael Howes"
-format: html
----
-
-***This is the question I chose: Does higher-than-average home attendance improve the home team’s performance in college football games, such as Ohio State/Michigan coming to play at SECU Stadium compared to a Towson. Does that help, or actually hurt the Terps' performance.  ****
-
-
-```{r}
-library(tidyverse)
-```
-
-```{r}
-data <- read_csv("../data/attendance spreadsheet.csv")
-```
-```{r}
-head(data)
-```
-
-
-```{r}
-summary(data)
-```
-
-```{r}
-data |>
-  group_by(Result) |>
-  summarise(avg_md_turnovers = mean(MdTurnovers),
-            avg_opp_turnovers = mean(OppTurnovers),
-            games = n())
-```
-
-```{r}
-data <- data |>
-  rename(Attendance = Attendence)
-```
-
-
-```{r}
-data |>
-  group_by(Result) |>
-  summarise(avg_attendance = mean(Attendance))
-```
-
-```{r}
-data |> 
-  filter(Attendance > 38000) |> 
-  summarise(avg_md_points = mean(MdPoints),
-            avg_opp_points = mean(OppPoints),
-            wins = sum(Result == "W"),
-            losses = sum(Result == "L"),
-            games = n())
-```
-
-```{r}
-data |> 
-  filter(Attendance <= 38000) |> 
-  summarise(avg_md_points = mean(MdPoints),
-            avg_opp_points = mean(OppPoints),
-            wins = sum(Result == "W"),
-            losses = sum(Result == "L"),
-            games = n())
-```
-
-
-***I found that Maryland averaged about 35 points and went 11–3 in games with below-average attendance, compared to just 24 points and a 2–5 record in high-attendance games. The results suggest that larger crowds at SECU Stadium don’t translate into better performance for Maryland — instead, those games typically feature ranked Big Ten opponents who draw more fans but also hand Maryland losses.***
-
-
 ```{r}
 Sys.setenv(CFBD_API_KEY = "nYYDD4adQNxIjanGAuq5+7QJnagAevOptlhW1KHzZMvML+OSi3CwZSUsw9O58aM6")
 ```
@@ -171,8 +102,4 @@ ggplot(b1g_subset, aes(x = result, y = avg_attendance, group = home_team, color 
   ) +
   theme_minimal()
 ```
-
-I created a line chart that shows the attendance in wins and losses. For this --- it showed that most teams are losing more highly attendended games than winning, but it isn't too much of a drop off -- except for Maryland. I was only able to select a few teams before it became unreadable. 
-
-Weaknesses: I'm not sure how to actually showcase the data I found on a graphic. I'm not too confident in this graphic I created today, or if I went through the new data set correctly. Going through 17 different teams stats across multiple seasons is time intensive, but I'm also not sure if I chose the correct cfbfastR package. I like using it, but will need to explore further. I'm also not sure if the graphic I created answers the core question --- do home teams perform better in front of larger fans. 
 
