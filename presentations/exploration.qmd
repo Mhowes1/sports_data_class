@@ -103,3 +103,95 @@ ggplot(b1g_subset, aes(x = result, y = avg_attendance, group = home_team, color 
   theme_minimal()
 ```
 
+```{r}
+b1g_only_wide <- b1g_only_long |>
+  select(home_team, result, avg_attendance) |>
+  pivot_wider(
+    names_from = result,
+    values_from = avg_attendance
+  )
+```
+
+```{r}
+b1g_only_wide <- b1g_only_wide |>
+  mutate(
+    pct_change = (Win - Loss) / Loss * 100
+  )
+```
+
+```{r}
+b1g_only_wide <- b1g_only_wide |>
+  filter(!home_team %in% c("Washington", "Oregon"))
+```
+
+```{r}
+ggplot(b1g_only_wide, aes(x = Loss, y = Win)) +
+  geom_point(aes(color = home_team == "Maryland"), size = 3) +
+  geom_smooth(method = "lm", color = "blue") +
+  scale_color_manual(values = c("FALSE" = "black", "TRUE" = "red"), guide = "none") +
+  scale_x_continuous(labels = scales::comma) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(
+    title = "Maryland’s Home Attendance Lags Behind Other Big Ten Teams in Wins",
+    subtitle = "Maryland highlighted",
+    x = "Average Attendance in Losses",
+    y = "Average Attendance in Wins"
+  ) +
+  theme_minimal()
+```
+
+This scatterplot compares average home attendance in wins versus losses for Big Ten football teams from 2021 to 2024. Each point represents one program, showing how its home crowds differ based on game outcomes. The strong upward trendline indicates that attendance generally rises for teams when they win. Maryland, highlighted in red, sits below the trend --- signaling that it draws smaller home crowds for wins than most of its Big Ten peers.
+
+```{r}
+all_2021 <- cfbd_game_info(year = 2021)
+all_2022 <- cfbd_game_info(year = 2022)
+all_2023 <- cfbd_game_info(year = 2023)
+all_2024 <- cfbd_game_info(year = 2024)
+
+all_games <- bind_rows(all_2021, all_2022, all_2023, all_2024)
+
+```
+
+```{r}
+home <- all_games |>
+  filter(!neutral_site, !is.na(attendance)) |>
+  mutate(result = if_else(home_points > away_points, "Win", "Loss"))
+```
+
+```{r}
+all_only_long <- home |>
+  group_by(home_team, result) |>
+  summarize(
+    games = n(),
+    avg_home_pts   = mean(home_points),
+    avg_opp_pts    = mean(away_points),
+    avg_attendance = mean(attendance)
+  ) |>
+  arrange(home_team, desc(result))
+```
+
+```{r}
+all_only_wide <- all_only_long |>
+  select(home_team, result, avg_attendance) |>
+  pivot_wider(names_from = result, values_from = avg_attendance) |>
+  mutate(pct_change = (Win - Loss) / Loss * 100)|> 
+  drop_na()
+```
+
+```{r}
+ggplot(all_only_wide, aes(x = Loss, y = Win)) +
+  geom_point(aes(color = home_team == "Maryland"), size = 3) +
+  geom_smooth(method = "lm", color = "blue") +
+  scale_color_manual(values = c("FALSE" = "black", "TRUE" = "red"), guide = "none") +
+  scale_x_continuous(labels = scales::comma) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(
+    title = "Maryland’s Home Attendance Declines Even in Wins Compared to FBS",
+    subtitle = "Maryland highlighted",
+    x = "Average Attendance in Losses",
+    y = "Average Attendance in Wins"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+This scatterplot compares home attendance in wins versus losses for every FBS football team from 2021 to 2024. Each point represents one program, showing how average crowds change based on game outcomes. The strong diagonal trendline indicates that most teams draw similar attendance regardless of result, with slightly higher crowds in wins. Maryland, highlighted in red, falls below that trend --- showing that its home attendance tends to drop in victories and peak during higher-profile losses.
