@@ -1,3 +1,15 @@
+---
+title: "What does Maryland football's attendence in wins and losses look like?"
+author: "Michael Howes"
+date: '2025-11-02'
+image: "image.png"
+format: 
+  html:
+    code-fold: true
+---
+
+How much do wins actually move the needle for college football attendance? Do fans really show up more when their team’s winning — or are some programs just drawing crowds no matter what? I wanted to find out. Using cfbfastR, I pulled every FBS game from 2021–2024 and compared each team’s average home attendance in wins versus losses. The goal was to see where Maryland fits in — and whether its crowds really dip even when things are going right on the field.
+
 ```{r}
 Sys.setenv(CFBD_API_KEY = "nYYDD4adQNxIjanGAuq5+7QJnagAevOptlhW1KHzZMvML+OSi3CwZSUsw9O58aM6")
 ```
@@ -82,26 +94,11 @@ b1g_only_long <- home |>
 ```
 
 
-I decided the change what I was doing and use the cfbfastR for this project. There are 34 rows, two for each Big Ten Team --- one for losses and one for wins which shows the attendence at the home game and the stats for wins/losses. 
+I initially wanted to make a quick, clean visual that compared how Big Ten teams draw fans when they win versus when they lose — just to see if Maryland really stands out for having that weird drop in attendance after wins. The idea was simple: one line per team, connecting average attendance in losses to average attendance in wins.
+
+But once I built it out, it just didn’t hit the way I hoped. The lines were all pretty flat, and it kind of looked cluttered without really emphasizing the main point. Maryland’s drop-off was technically there, but it didn’t stand out — everything blended together. It felt more like a spreadsheet on a chart than a visual that actually tells a story.
 
 
-```{r}
-line_teams <- c("Maryland", "Ohio State", "Michigan", "Penn State", "Indiana", "Wisconsin", "UCLA")
-
-b1g_subset <- b1g_only_long |>
-  filter(home_team %in% line_teams)
-
-ggplot(b1g_subset, aes(x = result, y = avg_attendance, group = home_team, color = home_team)) +
-  geom_line() +
-  geom_point() +
-  labs(
-    title = "Maryland sees the largest drop off in attendence in wins vs losses.
-    The Terps are losing the more attended games compared to the conference.",
-    x = "",
-    y = "Avg. Attendance"
-  ) +
-  theme_minimal()
-```
 
 ```{r}
 b1g_only_wide <- b1g_only_long |>
@@ -156,8 +153,8 @@ ggplot(b1g_only_wide, aes(x = Loss, y = Win)) +
   scale_x_continuous(labels = scales::comma) +
   scale_y_continuous(labels = scales::comma) +
   labs(
-    title = "Maryland’s Home Attendance Lags Behind Other Big Ten Teams in Wins",
-    subtitle = "Maryland, Northwestern, Ohio State, Michigan State, Michigan, and Minnesota highlighted",
+    title = "Maryland’s Home Attendance Lags \nBehind Other Big Ten Teams in Wins",
+    subtitle = "Maryland, Northwestern, Ohio State, Michigan State, \nMichigan, and Minnesota highlighted",
     x = "Average Attendance in Losses",
     y = "Average Attendance in Wins"
   ) +
@@ -228,7 +225,7 @@ ggplot(all_only_wide, aes(x = Loss, y = Win)) +
       "Maryland" = "yellow",
       "Penn State" = "blue",        
       "Harvard" = "brown",           
-      "South Carolina" = "white",    
+      "South Carolina" = "maroon",    
       "Fresno State" = "red",      
       "Other" = "gray50"
     ),
@@ -251,3 +248,7 @@ ggplot(all_only_wide, aes(x = Loss, y = Win)) +
 ```
 
 This scatterplot compares home attendance in wins versus losses for every FBS football team from 2021 to 2024. Each point represents one program, showing how average crowds change based on game outcomes. The strong diagonal trendline indicates that most teams draw similar attendance regardless of result, with slightly higher crowds in wins. Maryland, highlighted in red, falls below that trend --- showing that its home attendance tends to drop in victories and peak during higher-profile losses.
+
+
+
+
