@@ -251,4 +251,3 @@ This scatterplot compares home attendance in wins versus losses for every FBS fo
 
 
 
-
