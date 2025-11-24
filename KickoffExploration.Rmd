@@ -1,0 +1,93 @@
+
+```{r}
+install.packages("nflfastR")
+library(nflfastR)
+library(tidyverse)
+library(lubridate)
+```
+
+For this project, I’m pulling play-by-play data from nflfastR for the 2023–2025 seasons, which covers the league’s transition into the new dynamic kickoff system. That gives me every kickoff, every return and every drive that followed, with all the EPA, field position and scoring indicators baked into the dataset. 
+
+The scope right now is league-wide --- all 32 teams across two rule eras — but I’ve narrowed the analysis to only the teams that actively make a choice: either take the guaranteed touchback or try to pin opponents and force a return.
+
+```{r}
+pbp <- load_pbp(2023:2025)
+```
+
+
+```{r}
+kickoffs <- pbp |> 
+  filter(play_type == "kickoff") |> 
+  mutate(
+    rule_phase = case_when(
+      season < 2024 ~ "Old",
+      season == 2024 ~ "Dynamic_Intro",
+      season >= 2025 ~ "Dynamic_Refined"
+    ),
+    result = case_when(
+      touchback == 1 ~ "Touchback",
+      return_yards > 0 ~ "Return",
+      TRUE ~ "Other"
+    )
+  )
+```
+
+```{r}
+drives <- pbp |> 
+  select(
+    game_id,
+    fixed_drive,
+    fixed_drive_result,
+    drive_start_yard_line,
+    drive_end_yard_line,
+    drive_ended_with_score
+  ) |> 
+  distinct()
+```
+
+```{r}
+kickoffs_drives <- kickoffs |>
+  left_join(
+    drives,
+    by = c("game_id", "fixed_drive")
+  )
+```
+
+After loading the data, the first thing I did was isolate all kickoff plays and create a new variable marking the rule era (“Old,” “Dynamic_Intro,” “Dynamic_Refined”). I then joined kickoff plays to the drive-level fields (drive start position, drive end position, drive result, scoring indicator). 
+
+That merge gives me a full picture of what actually happened after each decision. To make the data usable, I also stripped the 377-column play-by-play table down to only the pieces I need: kickoff result, return yards, field position, drive outcome and whether the drive produced points.
+
+```{r}
+kickoffs_clean <- kickoffs_drives |>
+  select(
+    game_id,
+    season,
+    week,
+    kick_result = result,
+    return_yards,
+    rule_phase,
+    fixed_drive,
+    drive_result = fixed_drive_result.y,
+    drive_start_yard_line = drive_start_yard_line.y,
+    drive_end_yard_line = drive_end_yard_line.y,
+    drive_ended_with_score = drive_ended_with_score.y
+  )
+
+kickoffs_clean
+```
+
+My first look at the filtered dataset shows exactly what I hoped to see --- both touchbacks and returns feed cleanly into drive outcomes, so I can now track scoring rates, field position changes and expected points added after each kickoff type. The biggest question I’m working through now is how to define “success.” There are multiple ways to do it.
+
+--- Drive scoring rate (how often each choice leads to points allowed)
+--- EPA allowed (a stronger measure of defensive success)
+--- Average starting field position (simple, intuitive, easy to visualize)
+--- Percentage of returns stopped inside the 25 (the backbone of the new rule’s strategy)
+
+I’m leaning toward using all three — field position, EPA allowed and scoring rate --- because they capture slightly different parts of the risk-reward calculation.
+
+The main challenge right now is deciding how to compare teams that have different tendencies. Some coaches almost always take the touchback, others consistently try to force returns. To account for that, I’m planning to break teams into strategy profiles and compare their results within the same rule era, so I’m not mixing 2023 kickoffs with 2025 data. 
+
+Next steps are to tighten the summaries and start building graphics.
+
+
+
