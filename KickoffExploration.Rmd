@@ -89,5 +89,179 @@ The main challenge right now is deciding how to compare teams that have differen
 
 Next steps are to tighten the summaries and start building graphics.
 
+```{r}
+colnames(kickoffs_clean)
+```
+DEC. 1
+
+I created summary tables: team_rates, which calculates touchback percentages, return rates, average field position and scoring allowed for every team in every season; and league_rates, which does the same thing but at the league level so I can see the bigger-picture trends over time. 
+
+I also built kickoff_type_rates to look at outcomes grouped by result type. The thought process behind all of this was pretty straightforward --- I wanted a tidy, row-per-kickoff structure that let me compare seasons, teams and rule eras without fighting the raw nflfastR data. Once these tables were built, generating the visualizations became simple, and it made the rule-change patterns show up immediately.
+
+A roadblock was just wrestling with how messy the raw kickoff data is. 
+
+A lot of the yard line fields came in as character strings instead of numbers, and even after converting them I kept running into weird cases where values showed up as NA or got pulled in with team abbreviations attached. 
+
+That also made the “inside the 25” logic trickier than expected, because not every kickoff feeds cleanly into a drive start. I also had to sort out what “Other” actually meant in the play-by-play, since that bucket ends up collecting fair catches, out-of-bounds kicks, penalties and any return with zero yards. On top of that, grouping by kickoff type originally gave me 100% shares because I was calculating proportions inside each group instead of across the whole season. None of these issues broke the project, but they slowed me down and forced me to rethink how I was cleaning the data and defining the categories I’m analyzing.
+
+```{r}
+kickoffs_clean <- kickoffs_drives |>
+  select(
+    game_id,
+    season,
+    week,
+    kicking_team = posteam,  
+    kick_result = result,
+    return_yards,
+    rule_phase,
+    fixed_drive,
+    drive_result = fixed_drive_result.y,
+    drive_start_yard_line = drive_start_yard_line.y,
+    drive_end_yard_line = drive_end_yard_line.y,
+    drive_ended_with_score = drive_ended_with_score.y
+  ) |>
+  mutate(
+    drive_start_yard_line = suppressWarnings(as.numeric(drive_start_yard_line)),
+    drive_end_yard_line   = suppressWarnings(as.numeric(drive_end_yard_line))
+  )
+```
+
+```{r}
+team_rates <- kickoffs_clean |>
+  group_by(season, rule_phase, kicking_team) |> 
+  summarise(
+    n_kickoffs = n(),
+    pct_touchback = mean(kick_result == "Touchback", na.rm = TRUE),
+    pct_return    = mean(kick_result == "Return",     na.rm = TRUE),
+    pct_other     = mean(kick_result == "Other",      na.rm = TRUE),
+
+    pct_return_inside25 = mean(
+      kick_result == "Return" & drive_start_yard_line > 75,
+      na.rm = TRUE
+    ),
+
+    avg_start_pos = mean(drive_start_yard_line, na.rm = TRUE),
+    avg_end_pos   = mean(drive_end_yard_line,   na.rm = TRUE),
+
+    scoring_rate_allowed = mean(drive_ended_with_score, na.rm = TRUE)
+  ) |>
+  ungroup()
+```
+
+```{r}
+league_rates <- kickoffs_clean |>
+  group_by(season, rule_phase) |>
+  summarise(
+    total_kickoffs  = n(),
+    pct_touchback   = mean(kick_result == "Touchback", na.rm = TRUE),
+    pct_return      = mean(kick_result == "Return",     na.rm = TRUE),
+    pct_other       = mean(kick_result == "Other",      na.rm = TRUE),
+
+    pct_return_inside25 = mean(
+      kick_result == "Return" & drive_start_yard_line > 75,
+      na.rm = TRUE
+    ),
+
+    avg_start_pos = mean(drive_start_yard_line, na.rm = TRUE),
+    avg_end_pos   = mean(drive_end_yard_line,   na.rm = TRUE),
+    scoring_rate_allowed = mean(drive_ended_with_score, na.rm = TRUE)
+  ) |>
+  ungroup()
+```
+
+```{r}
+kickoff_type_rates <- kickoffs_clean |>
+  group_by(season, rule_phase, kick_result) |>
+  summarise(
+    n = n(),
+    pct_of_kickoffs = n / sum(n),
+    avg_start_pos   = mean(drive_start_yard_line, na.rm = TRUE),
+    avg_end_pos     = mean(drive_end_yard_line,   na.rm = TRUE),
+    scoring_rate_allowed = mean(drive_ended_with_score, na.rm = TRUE)
+  ) |>
+  ungroup()
+```
+
+```{r}
+library(ggplot2)
+
+league_rates_long <- league_rates |>
+  pivot_longer(
+    cols = c(pct_touchback, pct_return, pct_other),
+    names_to = "type",
+    values_to = "rate"
+  )
+
+ggplot(league_rates_long, aes(
+  x = season, y = rate, color = type, group = type
+)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 3) +
+  labs(
+    title = "Kickoff Returns Surge as Touchbacks \nCollapse Under the New Rule",
+    subtitle = "Touchback vs Return vs Other, by Season",
+    x = "Season",
+    y = "Rate"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+In 2023, touchbacks dominate and returns are a secondary outcome --- pretty much what you’d expect under the old system. 
+
+Once the dynamic kickoff is introduced in 2024, returns start climbing while touchbacks slide, but both still coexist. 
+
+Then 2025 hits and the two lines completely flip: returns spike to almost 80 percent of all kickoffs and touchbacks collapse into the teens. “Other” outcomes barely move at all. The shape of the chart makes it clear how fast the league's kickoff profile changed once the new alignment became the standard.
+
+```{r}
+ggplot(league_rates, aes(x = factor(season), y = scoring_rate_allowed)) +
+  geom_col(fill = "red") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(
+    title = "Scoring Became More Likely After Kickoffs Under the New Rule",
+    x = "Season",
+    y = "Scoring Rate Allowed"
+  ) +
+  theme_minimal(base_size = 14)
+```
+The scoring numbers track with the rule changes 
+
+In 2023, under the old kickoff, drives after kickoffs turned into points about a third of the time — pretty normal, because most of those drives were starting at the 25 off touchbacks. 
+
+Once the league introduced the dynamic setup in 2024, that rate bumps up. More returns meant more variability, and offenses were getting a few extra advantageous starts. 
+
+By 2025, when the fully refined version of the rule basically eliminated touchbacks altogether, the scoring rate climbs again. Teams are defending way more live returns, and offenses are inheriting a wider range of starting field positions. 
 
 
+```{r}
+ggplot(team_rates, aes(x = factor(kicking_team), y = pct_touchback)) +
+  geom_col(fill = "blue") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  facet_wrap(~ season, ncol = 1) +
+  labs(
+    title = "Teams Dramatically Reduced Touchbacks After \nthe NFL’s Kickoff Rule Change",
+    x = "Kicking Team",
+    y = "Touchback Rate"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+The team-by-team breakdown really shows how dramatic the shift was once the new kickoff went into place. 
+
+In 2023, under the old kickoff format, almost every team lived in that 60–80% touchback range, with only a couple outliers. Touchbacks were still the default --- coaches took the free field position and didn’t think twice.
+
+In 2024, when the league introduced the “dynamic” setup for the first time --- the return team lined up at the 20, the coverage team at the 40, and no one could move until the ball was caught — you can already see the numbers sliding. Teams were experimenting, but the league is still mostly clustered in the middle because nobody fully knew how aggressive they wanted to be yet.
+
+Then 2025 hits and everything falls off a cliff. With the refined version of the rule now in place (basically closing loopholes and making designed squibs/short pops even more advantageous), almost no one is kicking touchbacks anymore. 
+
+The distribution flattens out across the board. Instead of big gaps between teams, everyone is basically pushed into the same approach: force a return and try to pin the offense deep. 
+
+
+
+
+```{r}
+kickoffs_clean |> 
+  filter(kicking_team == "LA", season == 2025) |> 
+  count(kick_result)
+```
+
+One roadblock I ran into was noticing that my team-level touchback rates didn’t line up with the numbers on sites like TeamRankings, and I’m curious what drives that difference in how the same stat gets reported. I noticed that by checking the LA Rams. The touchback rates are different, but when I checked my data, it seemed to check out. 
