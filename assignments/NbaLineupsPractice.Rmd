@@ -1,0 +1,191 @@
+```{r}
+library(tidyverse)
+```
+
+```{r}
+install.packages("hoopR")
+```
+
+```{r}
+library(hoopR)
+```
+
+```{r}
+team_id<-1610612747
+```
+
+```{r}
+lineups <- nba_teamdashlineups(team_id = team_id)
+```
+
+```{r}
+lakers <- lineups [1]
+```
+
+```{r}
+lakers <- lineups[[2]]
+view(lakers)
+```
+
+```{r}
+colnames(lakers)
+```
+
+```{r}
+best_lakers_lineups <- lakers |>
+  arrange(desc(PLUS_MINUS)) |>
+  select(GROUP_NAME, GP, MIN, PTS, PLUS_MINUS)
+
+best_lakers_lineups
+```
+
+```{r}
+lebron_lineups <- lakers |>
+  filter(grepl("L. James", GROUP_NAME)) |>
+  arrange(desc(PLUS_MINUS)) |>
+  select(GROUP_NAME, GP, MIN, PTS, PLUS_MINUS)
+
+lebron_lineups
+```
+```{r}
+lebron_lineups |> 
+  arrange(desc(PLUS_MINUS)) |>
+  gt() |>
+  cols_label(
+    GROUP_NAME = "Lineup",
+    GP = "Games",
+    MIN = "Minutes",
+    PTS = "Points",
+    PLUS_MINUS = "Plus/Minus"
+  ) |>
+  tab_header(
+    title = "Most Effective Lakers Lineups With LeBron James",
+    subtitle = "Based on total plus/minus for the 2024–25 season."
+  ) |>  
+  tab_style(
+    style = cell_text(color = "black", weight = "bold", align = "left"),
+    locations = cells_title("title")
+  ) |> 
+  tab_style(
+    style = cell_text(color = "black", align = "left"),
+    locations = cells_title("subtitle")
+  ) |>  
+  tab_source_note(
+    source_note = md("**By:** Michael Howes  |  **Source:** NBA.com via hoopR")
+  ) |> 
+  tab_style(
+     locations = cells_column_labels(columns = everything()),
+     style = list(
+       cell_borders(sides = "bottom", weight = px(3)),
+       cell_text(weight = "bold", size=12)
+     )
+   ) |>
+  opt_row_striping() |> 
+  opt_table_lines("none") |>
+  fmt_number(
+    columns = c(PLUS_MINUS),
+    decimals = 0
+  )
+
+```
+
+```{r}
+best_lakers_lineups |> 
+  gt() |> 
+  
+  cols_label(
+    GROUP_NAME = "Lineup",
+    GP = "Games",
+    MIN = "Minutes",
+    PTS = "Points",
+    PLUS_MINUS = "Plus/Minus"
+  ) |>
+  
+  tab_header(
+    title = "Most Effective Lakers Lineups (2025–26)",
+    subtitle = "LeBron lineups highlighted. Sorted by total plus/minus."
+  ) |>
+  
+  tab_style(
+    style = cell_text(weight = "bold", align = "left"),
+    locations = cells_title("title")
+  ) |>
+  
+  tab_style(
+    style = cell_text(align = "left"),
+    locations = cells_title("subtitle")
+  ) |>
+  
+  tab_style(
+    locations = cells_column_labels(columns = everything()),
+    style = list(
+      cell_borders(sides = "bottom", weight = px(3)),
+      cell_text(weight = "bold", size = 12)
+    )
+  ) |>
+  
+  opt_row_striping() |>
+  opt_table_lines("none") |>
+  
+  fmt_number(
+    columns = PLUS_MINUS,
+    decimals = 0,
+    pattern = "{+}{x}"
+  ) |>
+  
+  tab_style(
+    style = list(
+      cell_fill(color = "purple"),
+      cell_text(color = "gold", weight = "bold")
+    ),
+    locations = cells_body(
+      rows = grepl("\\bL\\. James\\b|LeBron James", GROUP_NAME)
+    )
+  ) |>
+  
+  tab_source_note(
+    source_note = md("**By:** Michael Howes | **Source:** NBA.com via hoopR")
+  )
+```
+
+```{r}
+lakers_tagged <- lakers |> 
+  mutate(
+    lineup_type = case_when(
+      grepl("L. James", GROUP_NAME) & grepl("L. Dončić", GROUP_NAME) ~ "LeBron + Luka",
+      grepl("L. James", GROUP_NAME) & !grepl("L. Dončić", GROUP_NAME) ~ "LeBron Only",
+      !grepl("L. James", GROUP_NAME) & grepl("L. Dončić", GROUP_NAME) ~ "Luka Only",
+      TRUE ~ "Other"
+    )
+  )
+```
+
+```{r}
+three_groups <- lakers_tagged |> 
+  filter(lineup_type %in% c("LeBron Only", "Luka Only", "LeBron + Luka"))
+```
+
+```{r}
+three_groups <- three_groups |>
+  mutate(
+    MIN = as.numeric(MIN),
+    PLUS_MINUS = as.numeric(PLUS_MINUS)
+  )
+```
+
+
+
+```{r}
+library(ggplot2)
+
+ggplot(three_groups, aes(x = MIN, y = PLUS_MINUS, color = lineup_type)) +
+  geom_point(size = 3, alpha = 0.7) +
+  facet_wrap(~ lineup_type, scales = "free_x") +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Lakers Lineups Breakdown",
+    x = "Minutes Played",
+    y = "Plus/Minus"
+  )
+```
+
