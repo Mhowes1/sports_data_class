@@ -1,0 +1,419 @@
+DEC 7
+
+Before analyzing the impact of the new kickoff rule, I rebuilt the entire kickoff-classification system using nflfastR’s raw play-by-play fields.
+
+The original dataset lumped everything into “Return,” “Touchback,” or “Other,” which hides important outcomes like fair catches, out-of-bounds kicks, and onside kick recoveries.
+
+Using low-level fields (touchback, kickoff_out_of_bounds, return_yards, etc.), I created a true kickoff_type variable that correctly distinguishes the types
+
+
+
+```{r}
+library(nflfastR)
+library(tidyverse)
+library(lubridate)
+```
+
+
+```{r}
+pbp <- load_pbp(2023:2025)
+```
+
+```{r}
+kickoffs <- pbp |>
+  filter(play_type == "kickoff") |>
+  mutate(
+
+    rule_phase = case_when(
+      season < 2024 ~ "Old",
+      season == 2024 ~ "Dynamic_Intro",
+      season >= 2025 ~ "Dynamic_Refined"
+    ),
+    
+
+    kickoff_type = case_when(
+      touchback == 1 ~ "Touchback",
+      kickoff_out_of_bounds == 1 ~ "Out of Bounds",
+      kickoff_fair_catch == 1 ~ "Fair Catch",
+      own_kickoff_recovery == 1 ~ "Onside Recovery",
+      !is.na(return_yards) ~ "Return",
+      TRUE ~ NA_character_
+    ),
+    
+
+    result = case_when(
+      touchback == 1 ~ "Touchback",
+      !is.na(return_yards) ~ "Return",
+      TRUE ~ "Other"
+    )
+  )
+
+```
+
+```{r}
+drives <- pbp |>
+  select(
+    game_id,
+    fixed_drive,
+    fixed_drive_result,
+    drive_start_yard_line,
+    drive_end_yard_line,
+    drive_ended_with_score
+  ) |>
+  distinct()
+
+```
+
+```{r}
+kickoffs_drives <- kickoffs |>
+  left_join(
+    drives,
+    by = c("game_id", "fixed_drive")
+  )
+```
+
+```{r}
+kickoffs_clean <- kickoffs_drives |>
+  select(
+    game_id,
+    season,
+    week,
+    kicking_team = posteam,
+    kickoff_type,
+    kick_result = result,
+    return_yards,
+    kickoff_out_of_bounds,   # <––– ADD THIS BACK
+    rule_phase,
+    fixed_drive,
+    drive_result = fixed_drive_result.y,
+    drive_start_yard_line = drive_start_yard_line.y,
+    drive_end_yard_line = drive_end_yard_line.y,
+    drive_ended_with_score = drive_ended_with_score.y
+  ) |>
+  mutate(
+    drive_start_yard_line = as.numeric(drive_start_yard_line),
+    drive_end_yard_line   = as.numeric(drive_end_yard_line)
+  )
+```
+```{r}
+team_rates <- kickoffs_clean |>
+  group_by(season, rule_phase, kicking_team) |>
+  summarise(
+    n_kickoffs = n(),
+    pct_touchback = mean(kick_result == "Touchback", na.rm = TRUE),
+    pct_return    = mean(kick_result == "Return",     na.rm = TRUE),
+    pct_other     = mean(kick_result == "Other",      na.rm = TRUE),
+
+    pct_return_inside25 = mean(
+      kick_result == "Return" & drive_start_yard_line > 75,
+      na.rm = TRUE
+    ),
+
+    avg_start_pos = mean(drive_start_yard_line, na.rm = TRUE),
+    avg_end_pos   = mean(drive_end_yard_line,   na.rm = TRUE),
+
+    scoring_rate_allowed = mean(drive_ended_with_score, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+```
+
+```{r}
+league_rates <- kickoffs_clean |>
+  group_by(season, rule_phase) |>
+  summarise(
+    total_kickoffs  = n(),
+    pct_touchback   = mean(kick_result == "Touchback", na.rm = TRUE),
+    pct_return      = mean(kick_result == "Return",     na.rm = TRUE),
+    pct_other       = mean(kick_result == "Other",      na.rm = TRUE),
+
+    pct_return_inside25 = mean(
+      kick_result == "Return" & drive_start_yard_line > 75,
+      na.rm = TRUE
+    ),
+
+    avg_start_pos = mean(drive_start_yard_line, na.rm = TRUE),
+    avg_end_pos   = mean(drive_end_yard_line,   na.rm = TRUE),
+    scoring_rate_allowed = mean(drive_ended_with_score, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+```{r}
+kickoff_type_rates <- kickoffs_clean |>
+  group_by(season, rule_phase, kick_result) |>
+  summarise(
+    n = n(),
+    avg_start_pos = mean(drive_start_yard_line, na.rm = TRUE),
+    avg_end_pos   = mean(drive_end_yard_line,   na.rm = TRUE),
+    scoring_rate_allowed = mean(drive_ended_with_score, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  group_by(season, rule_phase) |>
+  mutate(
+    pct_of_kickoffs = n / sum(n)
+  ) |>
+  ungroup()
+```
+
+```{r}
+league_rates_long <- league_rates |>
+  pivot_longer(
+    cols = c(pct_touchback, pct_return, pct_other),
+    names_to = "type",
+    values_to = "rate"
+  )
+
+ggplot(league_rates_long, aes(
+  x = season, y = rate, color = type, group = type
+)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 3) +
+  labs(
+    title = "Kickoff Returns Surge as \nTouchbacks Collapse Under the New Rule",
+    subtitle = "Touchback vs Return vs Other, by Season",
+    x = "Season",
+    y = "Rate"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+```{r}
+kickoff_scoring <- kickoffs_clean |>
+  group_by(season, kickoff_type) |>
+  summarise(
+    scoring_rate = mean(drive_ended_with_score, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+ggplot(kickoff_scoring, aes(
+  x = factor(season),
+  y = scoring_rate,
+  fill = kickoff_type
+)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Touchbacks aren’t the safe play anymore, \nneither are touchbacks",
+    subtitle = "Returns in 2025 produce more points than touchbacks in 2023",
+    x = "Season",
+    y = "Scoring Rate",
+    fill = "Kickoff Type"
+  ) +
+  theme_minimal(base_size = 14)
+```
+New graphic. I like this one. Wanted to check the onside kick numbers out. 
+
+```{r}
+kickoffs_clean |>
+  count(season, kickoff_type)
+```
+```{r}
+kickoffs_clean |>
+  filter(kickoff_type == "Onside Recovery") |>
+  select(season, game_id, drive_ended_with_score, drive_start_yard_line, drive_end_yard_line) 
+```
+```{r}
+kickoffs_clean |>
+  filter(kickoff_type == "Onside Recovery") |>
+  group_by(season) |>
+  summarise(
+    attempts = n(),
+    scoring_rate = mean(drive_ended_with_score, na.rm = TRUE)
+  )
+```
+
+```{r}
+onside_plays <- pbp |>
+  filter(play_type == "kickoff",
+         own_kickoff_recovery == 1) |>
+  select(season, game_id, play_id, desc,
+         drive, fixed_drive, drive_start_yard_line, drive_end_yard_line,
+         drive_ended_with_score)
+
+onside_plays
+```
+
+```{r}
+pbp |>
+  filter(game_id == "2024_12_MIN_CHI") |>
+  arrange(play_id) |>
+  mutate(next_play = lead(desc)) |>
+  filter(play_id == 4189)
+```
+
+Checks out. Teams did score every time they recovered an onside kick. 
+
+```{r}
+kickoff_scoring_no_onside <- kickoffs_clean |>
+  filter(kickoff_type != "Onside Recovery") |>   # <-- remove onside kicks
+  group_by(season, kickoff_type) |>
+  summarise(
+    scoring_rate = mean(drive_ended_with_score, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+ggplot(kickoff_scoring_no_onside, aes(
+  x = factor(season),
+  y = scoring_rate,
+  fill = kickoff_type
+)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Touchbacks aren’t the safe play anymore, \nneither are touchbacks",
+    subtitle = "Shows true scoring impact without high-variance onside recoveries",
+    x = "Season",
+    y = "Scoring Rate",
+    fill = "Kickoff Type"
+  ) +
+  theme_minimal(base_size = 14)
+
+```
+
+```{r}
+pbp_old <- load_pbp(2015:2022)
+```
+
+```{r}
+kickoffs_old <- pbp_old |>
+  filter(play_type == "kickoff") |>
+  mutate(
+    rule_phase = "Pre-Dynamic",
+    kickoff_type = case_when(
+      touchback == 1 ~ "Touchback",
+      kickoff_out_of_bounds == 1 ~ "Out of Bounds",
+      kickoff_fair_catch == 1 ~ "Fair Catch",
+      own_kickoff_recovery == 1 ~ "Onside Recovery",
+      !is.na(return_yards) ~ "Return",
+      TRUE ~ NA_character_
+    ),
+    result = case_when(
+      touchback == 1 ~ "Touchback",
+      !is.na(return_yards) ~ "Return",
+      TRUE ~ "Other"
+    )
+  )
+```
+
+```{r}
+drives_old <- pbp_old |>
+  select(
+    game_id,
+    fixed_drive,
+    fixed_drive_result,
+    drive_start_yard_line,
+    drive_end_yard_line,
+    drive_ended_with_score
+  ) |>
+  distinct()
+```
+
+```{r}
+kickoffs_drives_old <- kickoffs_old |>
+  left_join(
+    drives_old,
+    by = c("game_id", "fixed_drive")
+  )
+```
+
+```{r}
+kickoffs_clean_old <- kickoffs_drives_old |>
+  select(
+    game_id,
+    season,
+    week,
+    kicking_team = posteam,
+    kickoff_type,
+    kick_result = result,
+    return_yards,
+    rule_phase,
+    fixed_drive,
+    drive_result = fixed_drive_result.y,
+    drive_start_yard_line = drive_start_yard_line.y,
+    drive_end_yard_line = drive_end_yard_line.y,
+    drive_ended_with_score = drive_ended_with_score.y
+  ) |>
+  mutate(
+    drive_start_yard_line = as.numeric(drive_start_yard_line),
+    drive_end_yard_line   = as.numeric(drive_end_yard_line)
+  )
+
+```
+```{r}
+league_scoring <- bind_rows(
+  kickoffs_clean_old,
+  kickoffs_clean 
+) |>
+  group_by(season) |>
+  summarise(
+    scoring_rate = mean(drive_ended_with_score, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+```{r}
+ggplot(league_scoring, aes(
+  x = season,
+  y = scoring_rate
+)) +
+  geom_line(color = "steelblue", linewidth = 1.3) +
+  geom_point(color = "steelblue", size = 3) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_x_continuous(breaks = 2015:2025) +
+  labs(
+    title = "Scoring rare has risen with kickoff changes",
+    subtitle = "Percentage of drives that ended in points following a kickoff",
+    x = "Season",
+    y = "Scoring Rate"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+Wanted to broaden the years of scoring to show the change more. 
+
+```{r}
+kickoffs_clean |>
+  count(season, kickoff_type) |>
+  group_by(season) |>
+  mutate(pct = n / sum(n)) |>
+  ggplot(aes(
+    x = kickoff_type,
+    y = pct,
+    fill = kickoff_type
+  )) +
+  geom_col() +
+  facet_wrap(~ season) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Returns are now the dominant outcome",
+    x = "Kickoff Type",
+    y = "Percentage"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+```{r}
+oob_totals <- kickoffs_clean |>
+filter(kickoff_out_of_bounds == 1) |>
+group_by(season) |>
+summarise(
+total_oob_kickoffs = n(),
+.groups = "drop"
+)
+```
+
+
+
+
+```{r}
+ggplot(oob_totals, aes(x = factor(season), y = total_oob_kickoffs)) +
+  geom_col(fill = "red") +
+  labs(
+    title = "Out-of-Bounds Kickoffs Spike Under the NFL’s New Rule",
+    x = "Season",
+    y = "Total OOB Kickoffs"
+  ) +
+  theme_minimal(base_size = 14)
+```
+Last peice of evidence I wanted show from the new kickoffs: how much more its getting kicked out of bounds. 
