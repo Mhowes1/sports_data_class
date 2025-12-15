@@ -450,30 +450,8 @@ Out-of-bounds kicks climbed as teams experimented with the new spacing of the Dy
 
 The margin for error shrinks on those shots, and the new rule punishes misses harshly — one yard too wide turns an aggressive kickoff into a free spot near the 40. The jump in OOB kicks reflects that learning curve: teams pushing for an edge, and the rule pushing back.
 
-```{r}
-kickoffs_clean |>
-  filter(kickoff_type %in% c("Touchback", "Out of Bounds", "Return")) |>
-  group_by(season, kickoff_type) |>
-  summarise(
-    min_yardline = min(true_start, na.rm = TRUE),
-    avg_yardline = mean(true_start, na.rm = TRUE),
-    median_yardline = median(true_start, na.rm = TRUE),
-    max_yardline = max(true_start, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  arrange(season, kickoff_type)
-```
-```{r}
-kickoffs_clean |>
-  filter(kickoff_type == "Touchback") |>
-  count(season, true_start)
-```
 
-```{r}
-kickoffs_clean |>
-  filter(kickoff_type == "Out of Bounds") |>
-  count(true_start)
-```
+
 
 ```{r}
 faircatch_oob <- kickoffs_clean |>
