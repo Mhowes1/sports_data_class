@@ -475,10 +475,6 @@ kickoffs_clean |>
   count(true_start)
 ```
 
-
-
-## 🔵 **2. Fair Catch Decline vs Out-of-Bounds Increase**
-
 ```{r}
 faircatch_oob <- kickoffs_clean |>
   count(season, kickoff_type) |>
